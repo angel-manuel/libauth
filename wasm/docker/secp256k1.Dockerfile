@@ -12,11 +12,19 @@ COPY wasm /libauth/wasm
 WORKDIR /libauth/wasm/secp256k1
 
 RUN ./autogen.sh
-RUN emconfigure ./configure --enable-module-recovery \
+RUN emconfigure ./configure \
+  --enable-module-recovery \
+  --enable-experimental \
+  --enable-module-schnorrsig \
+  # otherwise memory use and size goes up
+  --disable-ecmult-static-precomputation \
   # uncomment next line for debug build:
   # CFLAGS="-g -O0" 
   # uncomment next line for production build:
   CFLAGS="-O3" 
+# uncomment next 2 lines so ecmult-static-precomputation works
+# RUN sed -i 's/^\(\(CC\|CPP\)\?\(_FOR_BUILD\)\?\) =/\1 ?=/g' Makefile
+# RUN CC=gcc CC_FOR_BUILD=gcc CPP=g++ CPP_FOR_BUILD=g++ make gen_context
 RUN emmake make FORMAT=wasm
 RUN mkdir -p out/secp256k1
 
@@ -34,10 +42,15 @@ RUN emcc src/libsecp256k1_la-secp256k1.o \
   "_free", \
   "_secp256k1_context_create", \
   "_secp256k1_context_randomize", \
+  "_secp256k1_ec_seckey_negate", \
+  "_secp256k1_ec_seckey_tweak_add", \
+  "_secp256k1_ec_seckey_tweak_mul", \
   "_secp256k1_ec_seckey_verify", \
   "_secp256k1_ec_privkey_tweak_add", \
   "_secp256k1_ec_privkey_tweak_mul", \
+  "_secp256k1_ec_pubkey_combine", \
   "_secp256k1_ec_pubkey_create", \
+  "_secp256k1_ec_pubkey_negate", \
   "_secp256k1_ec_pubkey_parse", \
   "_secp256k1_ec_pubkey_serialize", \
   "_secp256k1_ec_pubkey_tweak_add", \
@@ -54,8 +67,8 @@ RUN emcc src/libsecp256k1_la-secp256k1.o \
   "_secp256k1_ecdsa_signature_serialize_compact", \
   "_secp256k1_ecdsa_sign_recoverable", \
   "_secp256k1_ecdsa_verify", \
-  "_secp256k1_schnorr_sign", \
-  "_secp256k1_schnorr_verify" \
+  "_secp256k1_schnorrsig_sign", \
+  "_secp256k1_schnorrsig_verify" \
   ]' \
   -o out/secp256k1/secp256k1.js
 
