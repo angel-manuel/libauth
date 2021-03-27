@@ -78,6 +78,28 @@ export interface Secp256k1 {
   ) => Uint8Array;
 
   /**
+   * Add a number of public keys together.
+   *
+   * The returned public key will be in compressed format.
+   *
+   * @param publicKeys - array of public keys
+   */
+  readonly combinePublicKeysCompressed: (
+    publicKeys: Uint8Array[]
+  ) => Uint8Array;
+
+  /**
+   * Add a number of public keys together.
+   *
+   * The returned public key will be in uncompressed format.
+   *
+   * @param publicKeys - array of public keys
+   */
+  readonly combinePublicKeysUncompressed: (
+    publicKeys: Uint8Array[]
+  ) => Uint8Array;
+
+  /**
    * Compress a valid ECDSA public key. Returns a public key in compressed
    * format (33 bytes, header byte 0x02 or 0x03).
    *
@@ -178,6 +200,35 @@ export interface Secp256k1 {
     publicKey: Uint8Array,
     tweakValue: Uint8Array
   ) => Uint8Array;
+
+  /**
+   * Negate a `secretKey`.
+   *
+   * Throws if the provided private key is invalid.
+   *
+   * @param privateKey - a valid secp256k1 private key
+   */
+  readonly negatePrivateKey: (privateKey: Uint8Array) => Uint8Array;
+
+  /**
+   * Negate a `publicKey`.
+   *
+   * Throws if the provided public key is invalid.
+   * Returns a compressed key.
+   *
+   * @param publicKey - a valid secp256k1 public key
+   */
+  readonly negatePublicKeyCompressed: (publicKey: Uint8Array) => Uint8Array;
+
+  /**
+   * Negate a `publicKey`.
+   *
+   * Throws if the provided public key is invalid.
+   * Returns a uncompressed key.
+   *
+   * @param publicKey - a valid secp256k1 public key
+   */
+  readonly negatePublicKeyUncompressed: (publicKey: Uint8Array) => Uint8Array;
 
   /**
    * Normalize a compact-encoded ECDSA signature to lower-S form.

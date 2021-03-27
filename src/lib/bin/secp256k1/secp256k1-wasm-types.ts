@@ -138,6 +138,43 @@ export interface Secp256k1Wasm {
   readonly mallocUint8Array: (array: Uint8Array) => number;
 
   /**
+   * Negates a _secretKey_ in place.
+   * Returns 1 if the given key was valid, 0 otherwise.
+   *
+   * @param contextPtr - pointer to a context object
+   * @param secretKeyPtr - pointer to a 32 byte private key
+   */
+  readonly seckeyNegate: (contextPtr: number, secretKeyPtr: number) => 1 | 0;
+
+  /**
+   * Tweak a _secretKey_ by adding _tweak_ to it.
+   * Returns 1 if adding succeeded, 0 otherwise.
+   *
+   * @param contextPtr - pointer to a context object
+   * @param secretKeyPtr - pointer to a 32 byte private key
+   * @param tweakNum256Ptr - pointer to a 256 bit int representing the tweak value
+   */
+  readonly seckeyTweakAdd: (
+    contextPtr: number,
+    secretKeyPtr: number,
+    tweakNum256Ptr: number
+  ) => 1 | 0;
+
+  /**
+   * Tweak a _secretKey_ by multiplying _tweak_ to it.
+   * Returns 1 if multiplying succeeded, 0 otherwise.
+   *
+   * @param contextPtr - pointer to a context object
+   * @param secretKeyPtr - pointer to a 32 byte private key
+   * @param tweakNum256Ptr - pointer to a 256 bit int representing the tweak value
+   */
+  readonly seckeyTweakMul: (
+    contextPtr: number,
+    secretKeyPtr: number,
+    tweakNum256Ptr: number
+  ) => 1 | 0;
+
+  /**
    * Tweak a _privateKey_ by adding _tweak_ to it.
    * Returns 1 if adding succeeded, 0 otherwise.
    *
@@ -166,6 +203,24 @@ export interface Secp256k1Wasm {
   ) => 1 | 0;
 
   /**
+   * Add a number of public keys together.
+   *
+   * Returns 1 if the sum of the public keys is valid, otherwise 0.
+   *
+   * @param contextPtr - pointer to a context object
+   * @param publicKeyOutPtr - a pointer to a 64 byte space where the combined public key
+   * key will be written. (internal format)
+   * @param publicKeyArrayPtr - pointer to array of pointers to public keys
+   * @param publicKeyArrayLen - length of the public key array
+   */
+  readonly pubkeyCombine: (
+    contextPtr: number,
+    publicKeyOutPtr: number,
+    publicKeyArrayPtr: number,
+    publicKeyArrayLen: number
+  ) => 1 | 0;
+
+  /**
    * Compute the public key for a secret key.
    *
    *  Returns 1 if the secret was valid and public key stored, otherwise 0.
@@ -180,6 +235,16 @@ export interface Secp256k1Wasm {
     publicKeyPtr: number,
     secretKeyPtr: number
   ) => 1 | 0;
+
+  /**
+   * Negates a public key in place.
+   * Returns 1 always.
+   *
+   * @param contextPtr - pointer to a context object
+   * @param publicKeyPtr - pointer to a 64 byte space representing a public key
+   * (internal format)
+   */
+  readonly pubkeyNegate: (contextPtr: number, publicKeyPtr: number) => 1 | 0;
 
   /**
    * Parse a variable-length public key into the pubkey object.

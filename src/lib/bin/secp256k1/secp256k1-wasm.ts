@@ -54,11 +54,28 @@ const wrapSecp256k1Wasm = (
       secretKeyPtr,
       tweakNum256Ptr
     ),
+  pubkeyCombine: (
+    contextPtr,
+    publicKeyOutPtr,
+    publicKeyArrayPtr,
+    publicKeyArrayLen
+  ) =>
+    (instance.exports as any)._secp256k1_ec_pubkey_combine(
+      contextPtr,
+      publicKeyOutPtr,
+      publicKeyArrayPtr,
+      publicKeyArrayLen
+    ),
   pubkeyCreate: (contextPtr, publicKeyPtr, secretKeyPtr) =>
     (instance.exports as any)._secp256k1_ec_pubkey_create(
       contextPtr,
       publicKeyPtr,
       secretKeyPtr
+    ),
+  pubkeyNegate: (contextPtr, publicKeyPtr) =>
+    (instance.exports as any)._secp256k1_ec_pubkey_negate(
+      contextPtr,
+      publicKeyPtr
     ),
   pubkeyParse: (
     contextPtr,
@@ -143,6 +160,23 @@ const wrapSecp256k1Wasm = (
       sigPtr,
       msg32Ptr,
       publicKeyPtr
+    ),
+  seckeyNegate: (contextPtr, secretKeyPtr) =>
+    (instance.exports as any)._secp256k1_ec_seckey_tweak_add(
+      contextPtr,
+      secretKeyPtr
+    ),
+  seckeyTweakAdd: (contextPtr, secretKeyPtr, tweakNum256Ptr) =>
+    (instance.exports as any)._secp256k1_ec_seckey_tweak_add(
+      contextPtr,
+      secretKeyPtr,
+      tweakNum256Ptr
+    ),
+  seckeyTweakMul: (contextPtr, secretKeyPtr, tweakNum256Ptr) =>
+    (instance.exports as any)._secp256k1_ec_seckey_tweak_mul(
+      contextPtr,
+      secretKeyPtr,
+      tweakNum256Ptr
     ),
   seckeyVerify: (contextPtr, secretKeyPtr) =>
     (instance.exports as any)._secp256k1_ec_seckey_verify(

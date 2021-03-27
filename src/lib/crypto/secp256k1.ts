@@ -24,6 +24,7 @@ const enum ByteLength {
   recoverableSig = 65,
   schnorrSig = 64,
   uncompressedPublicKey = 65,
+  pointer = 4,
 }
 
 /**
@@ -63,6 +64,24 @@ const wrapSecp256k1Wasm = (
   const schnorrSigPtr = secp256k1Wasm.malloc(ByteLength.schnorrSig);
   const privateKeyPtr = secp256k1Wasm.malloc(ByteLength.privateKey);
 
+  const COMBINE_PUBLIC_KEY_MAX_SIZE = 256;
+
+  const combinePublicKeyScratchPtr = secp256k1Wasm.malloc(
+    ByteLength.maxPublicKey * COMBINE_PUBLIC_KEY_MAX_SIZE
+  );
+  const combinePublicKeyArrayPtr = secp256k1Wasm.malloc(
+    ByteLength.pointer * COMBINE_PUBLIC_KEY_MAX_SIZE
+  );
+
+  // eslint-disable-next-line functional/no-loop-statement, functional/no-let, no-plusplus
+  for (let i = 0; i < COMBINE_PUBLIC_KEY_MAX_SIZE; i++) {
+    secp256k1Wasm.heapU32.set(
+      [combinePublicKeyScratchPtr + ByteLength.maxPublicKey * i],
+      // eslint-disable-next-line no-bitwise, @typescript-eslint/no-magic-numbers
+      (combinePublicKeyArrayPtr >> 2) + i
+    );
+  }
+
   const internalRSigPtr = secp256k1Wasm.malloc(ByteLength.recoverableSig);
   // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   const recoveryNumPtr = secp256k1Wasm.malloc(4);
@@ -76,12 +95,14 @@ const wrapSecp256k1Wasm = (
   // eslint-disable-next-line no-bitwise, @typescript-eslint/no-magic-numbers
   const lengthPtrView32 = lengthPtr >> 2;
 
-  const parsePublicKey = (publicKey: Uint8Array) => {
+  const parsePublicKey = (publicKey: Uint8Array, dstPtrOverride?: number) => {
+    const dstPtr = dstPtrOverride ?? internalPublicKeyPtr;
+
     secp256k1Wasm.heapU8.set(publicKey, publicKeyScratch);
     return (
       secp256k1Wasm.pubkeyParse(
         contextPtr,
-        internalPublicKeyPtr,
+        dstPtr,
         publicKeyScratch,
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         publicKey.length as 33 | 65
@@ -440,6 +461,18 @@ const wrapSecp256k1Wasm = (
     return getSerializedPublicKey(compressed);
   };
 
+  const negatePrivateKey = (privateKey: Uint8Array): Uint8Array => {
+    return withPrivateKey<Uint8Array>(privateKey, () => {
+      if (secp256k1Wasm.seckeyNegate(contextPtr, privateKeyPtr) !== 1) {
+        throw new Error('Private key is invalid');
+      }
+
+      return secp256k1Wasm
+        .readHeapU8(privateKeyPtr, ByteLength.privateKey)
+        .slice();
+    });
+  };
+
   const addTweakPrivateKey = (
     privateKey: Uint8Array,
     tweakValue: Uint8Array
@@ -447,7 +480,7 @@ const wrapSecp256k1Wasm = (
     fillMessageHashScratch(tweakValue);
     return withPrivateKey<Uint8Array>(privateKey, () => {
       if (
-        secp256k1Wasm.privkeyTweakAdd(
+        secp256k1Wasm.seckeyTweakAdd(
           contextPtr,
           privateKeyPtr,
           messageHashScratch
@@ -468,7 +501,7 @@ const wrapSecp256k1Wasm = (
     fillMessageHashScratch(tweakValue);
     return withPrivateKey<Uint8Array>(privateKey, () => {
       if (
-        secp256k1Wasm.privkeyTweakMul(
+        secp256k1Wasm.seckeyTweakMul(
           contextPtr,
           privateKeyPtr,
           messageHashScratch
@@ -480,6 +513,51 @@ const wrapSecp256k1Wasm = (
         .readHeapU8(privateKeyPtr, ByteLength.privateKey)
         .slice();
     });
+  };
+
+  const combinePublicKeys = (compressed: boolean) => (
+    publicKeys: Uint8Array[]
+  ) => {
+    if (
+      publicKeys.length < 1 ||
+      publicKeys.length > COMBINE_PUBLIC_KEY_MAX_SIZE
+    ) {
+      throw new Error('Invalid public key size');
+    }
+
+    publicKeys.forEach((publicKey, i) => {
+      if (
+        !parsePublicKey(
+          publicKey,
+          combinePublicKeyArrayPtr + i * ByteLength.maxPublicKey
+        )
+      ) {
+        throw new Error('Failed to parse public key.');
+      }
+    });
+
+    if (
+      secp256k1Wasm.pubkeyCombine(
+        contextPtr,
+        internalPublicKeyPtr,
+        combinePublicKeyArrayPtr,
+        publicKeys.length
+      ) !== 1
+    ) {
+      throw new Error('Combine failed');
+    }
+
+    return getSerializedPublicKey(compressed);
+  };
+
+  const negatePublicKey = (compressed: boolean) => (publicKey: Uint8Array) => {
+    if (!parsePublicKey(publicKey)) {
+      throw new Error('Failed to parse public key.');
+    }
+    if (secp256k1Wasm.pubkeyNegate(contextPtr, internalPublicKeyPtr) !== 1) {
+      throw new Error('Negate failed');
+    }
+    return getSerializedPublicKey(compressed);
   };
 
   const addTweakPublicKey = (compressed: boolean) => (
@@ -551,6 +629,8 @@ const wrapSecp256k1Wasm = (
     addTweakPrivateKey,
     addTweakPublicKeyCompressed: addTweakPublicKey(true),
     addTweakPublicKeyUncompressed: addTweakPublicKey(false),
+    combinePublicKeysCompressed: combinePublicKeys(true),
+    combinePublicKeysUncompressed: combinePublicKeys(false),
     compressPublicKey: convertPublicKey(true),
     derivePublicKeyCompressed: derivePublicKey(true),
     derivePublicKeyUncompressed: derivePublicKey(false),
@@ -559,6 +639,9 @@ const wrapSecp256k1Wasm = (
     mulTweakPrivateKey,
     mulTweakPublicKeyCompressed: mulTweakPublicKey(true),
     mulTweakPublicKeyUncompressed: mulTweakPublicKey(false),
+    negatePrivateKey,
+    negatePublicKeyCompressed: negatePublicKey(true),
+    negatePublicKeyUncompressed: negatePublicKey(false),
     normalizeSignatureCompact: modifySignature(false, true),
     normalizeSignatureDER: modifySignature(true, true),
     recoverPublicKeyCompressed: recoverPublicKey(true),
